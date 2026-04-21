@@ -1,49 +1,40 @@
-name: CI/CD Pipeline
+الـ `requirements.txt` صح تماماً! 
 
+المشكلة بقت واضحة — الـ **cache key بيعمل hash للملف قبل الـ checkout**، فبيفشل ويمسح الـ cache، وبعدين الـ `pip install` بيدور على الملف في مكان غلط.
+
+الحل: نضيف `restore-keys` للـ cache وكمان نتأكد إن الـ working directory صح. بس الأسرع والأضمن هو **نشيل الـ cache خالص مؤقتاً** عشان نعرف نحدد المشكلة.
+
+جرب الـ `ci.yml` ده:
+
+```yaml
+name: CI/CD Pipeline
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ hashFiles('requirements.txt') }}
-
       - name: Install dependencies
-        run: |
-          ls -la
-          pip install -r requirements.txt
-
+        run: pip install -r requirements.txt
       - name: Train model (needed for tests)
         run: python model/train.py
-
       - name: Run pytest
         run: pytest tests/ -v --tb=short
-
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Build image
         run: |
           docker build \
@@ -51,20 +42,16 @@ jobs:
             -t egypt-price-predictor:${{ github.sha }} \
             -t egypt-price-predictor:latest \
             .
-
       - name: Start container
         run: |
           docker run -d \
             --name predictor \
             -p 5000:5000 \
             egypt-price-predictor:latest
-
       - name: Wait for startup
         run: sleep 5
-
       - name: Health check
         run: curl -f http://localhost:5000/health
-
       - name: Smoke test prediction
         run: |
           curl -f -X POST http://localhost:5000/predict \
@@ -81,20 +68,19 @@ jobs:
               "has_elevator": 1,
               "has_pool": 0
             }'
-
       - name: Print container logs
         if: failure()
         run: docker logs predictor
-
   lint:
     name: Lint Dockerfile
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
+```
+
+الفرق الوحيد إني **شيلت الـ cache step** — لو اشتغل بعدها نضيفه تاني بالشكل الصح. اعمل commit وقولي النتيجة.
