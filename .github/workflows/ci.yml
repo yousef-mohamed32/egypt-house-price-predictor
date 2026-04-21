@@ -1,12 +1,3 @@
-الـ `requirements.txt` صح تماماً! 
-
-المشكلة بقت واضحة — الـ **cache key بيعمل hash للملف قبل الـ checkout**، فبيفشل ويمسح الـ cache، وبعدين الـ `pip install` بيدور على الملف في مكان غلط.
-
-الحل: نضيف `restore-keys` للـ cache وكمان نتأكد إن الـ working directory صح. بس الأسرع والأضمن هو **نشيل الـ cache خالص مؤقتاً** عشان نعرف نحدد المشكلة.
-
-جرب الـ `ci.yml` ده:
-
-```yaml
 name: CI/CD Pipeline
 on:
   push:
@@ -81,6 +72,3 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
-```
-
-الفرق الوحيد إني **شيلت الـ cache step** — لو اشتغل بعدها نضيفه تاني بالشكل الصح. اعمل commit وقولي النتيجة.
